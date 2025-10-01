@@ -24,12 +24,12 @@ const fileToGenerativePart = async (file: File) => {
   };
 };
 
-export const editImageWithPrompt = async (imageFile: File, prompt: string): Promise<{ image: string | null; text: string | null }> => {
-  if (!process.env.API_KEY) {
-    throw new Error("API_KEY environment variable is not set.");
+export const editImageWithPrompt = async (imageFile: File, prompt: string, apiKey: string): Promise<{ image: string | null; text: string | null }> => {
+  if (!apiKey) {
+    throw new Error("API Key is not provided.");
   }
 
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = new GoogleGenAI({ apiKey: apiKey });
   const imagePart = await fileToGenerativePart(imageFile);
 
   const response = await ai.models.generateContent({

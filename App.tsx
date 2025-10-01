@@ -1,5 +1,6 @@
 
 import React, { useState, useCallback } from 'react';
+import { ApiKeyInput } from './components/ApiKeyInput';
 import { ImageUploader } from './components/ImageUploader';
 import { EditorPanel } from './components/EditorPanel';
 import { ImageViewer } from './components/ImageViewer';
@@ -9,6 +10,7 @@ import { editImageWithPrompt } from './services/geminiService';
 import { EditPreset } from './types';
 
 const App: React.FC = () => {
+  const [apiKey, setApiKey] = useState<string | null>(null);
   const [originalImage, setOriginalImage] = useState<File | null>(null);
   const [originalImageUrl, setOriginalImageUrl] = useState<string | null>(null);
   const [editedImage, setEditedImage] = useState<{ url: string; text: string; } | null>(null);
@@ -28,6 +30,10 @@ const App: React.FC = () => {
       setError("Please upload an image first.");
       return;
     }
+    if (!apiKey) {
+      setError("API Key is not set. Please provide a valid API key.");
+      return;
+    }
 
     setIsLoading(true);
     setLoadingMessage(message);
@@ -35,20 +41,26 @@ const App: React.FC = () => {
     setEditedImage(null);
 
     try {
-      const result = await editImageWithPrompt(originalImage, prompt);
+      const result = await editImageWithPrompt(originalImage, prompt, apiKey);
       if (result.image) {
         setEditedImage({ url: result.image, text: result.text || 'Edit applied successfully.' });
       } else {
         setError(result.text || "Failed to edit image. The model might not have returned an image.");
       }
     } catch (err: any) {
-      setError(`An error occurred: ${err.message}`);
+      // Catch specific API key errors to give better feedback
+      if (err.message.includes('API key not valid')) {
+        setError("Your API key is not valid. Please enter a valid key to continue.");
+        setApiKey(null); // Reset API key to show the input screen again
+      } else {
+        setError(`An error occurred: ${err.message}`);
+      }
       console.error(err);
     } finally {
       setIsLoading(false);
       setLoadingMessage('');
     }
-  }, [originalImage]);
+  }, [originalImage, apiKey]);
 
   const handlePresetEdit = (preset: EditPreset) => {
     handleEdit(preset.prompt, preset.loadingMessage);
@@ -70,6 +82,11 @@ const App: React.FC = () => {
     setIsLoading(false);
   };
 
+  const handleApiKeySubmit = (key: string) => {
+    setApiKey(key);
+    setError(null);
+  }
+
   return (
     <div className="min-h-screen bg-gray-900 text-gray-200 flex flex-col font-sans">
       <Header />
@@ -83,7 +100,9 @@ const App: React.FC = () => {
           />
         </div>
         <div className="w-full lg:flex-1 flex flex-col bg-gray-800 rounded-lg shadow-2xl overflow-hidden">
-          {originalImageUrl ? (
+          {!apiKey ? (
+             <ApiKeyInput onApiKeySubmit={handleApiKeySubmit} error={error} />
+          ) : originalImageUrl ? (
             <ImageViewer
               originalImageUrl={originalImageUrl}
               editedImage={editedImage}
